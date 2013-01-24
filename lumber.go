@@ -28,15 +28,15 @@ var (
 )
 
 type Logger interface {
-	Fatal(format string, v ...interface{})
-	Error(format string, v ...interface{})
-	Warn(format string, v ...interface{})
-	Info(format string, v ...interface{})
-	Debug(format string, v ...interface{})
-	Trace(format string, v ...interface{})
-	output(msg *Message)
-	// output(level int, format string, v ...interface{})
+	Fatal(string, ...interface{})
+	Error(string, ...interface{})
+	Warn(string, ...interface{})
+	Info(string, ...interface{})
+	Debug(string, ...interface{})
+	Trace(string, ...interface{})
+	Level(int)
 	Close() error
+	output(msg *Message)
 }
 
 type Message struct {
