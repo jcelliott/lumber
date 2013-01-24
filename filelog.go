@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	BACKUP = -2
 	TRUNC  = -1
 	APPEND = 0
 )
@@ -25,6 +26,7 @@ type FileLogger struct {
 	timeFormat string
 }
 
+// Creates a new FileLogger with filename f, log output level o, and mode (BACKUP|TRUNC|APPEND)
 func NewFileLogger(f string, o, mode int) (l *FileLogger, err error) {
 	var file *os.File
 	if mode == TRUNC {
