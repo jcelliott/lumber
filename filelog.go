@@ -81,7 +81,9 @@ func backup(f *os.File) error {
 	return os.Rename(f.Name(), fmt.Sprintf("%s.1", f.Name()))
 }
 
-func (l *FileLogger) Output(msg *Message) {
+// Generic output function. Outputs messages if they are higher level than outLevel for this
+// specific logger. If msg does not end with a newline, one will be appended.
+func (l *FileLogger) output(msg *Message) {
 	if msg.level < l.outLevel {
 		return
 	}
@@ -129,25 +131,25 @@ func (l *FileLogger) Close() (err error) {
 }
 
 func (l *FileLogger) Fatal(format string, v ...interface{}) {
-	l.Output(&Message{FATAL, fmt.Sprintf(format, v...), time.Now()})
+	l.output(&Message{FATAL, fmt.Sprintf(format, v...), time.Now()})
 }
 
 func (l *FileLogger) Error(format string, v ...interface{}) {
-	l.Output(&Message{ERROR, fmt.Sprintf(format, v...), time.Now()})
+	l.output(&Message{ERROR, fmt.Sprintf(format, v...), time.Now()})
 }
 
 func (l *FileLogger) Warn(format string, v ...interface{}) {
-	l.Output(&Message{WARN, fmt.Sprintf(format, v...), time.Now()})
+	l.output(&Message{WARN, fmt.Sprintf(format, v...), time.Now()})
 }
 
 func (l *FileLogger) Info(format string, v ...interface{}) {
-	l.Output(&Message{INFO, fmt.Sprintf(format, v...), time.Now()})
+	l.output(&Message{INFO, fmt.Sprintf(format, v...), time.Now()})
 }
 
 func (l *FileLogger) Debug(format string, v ...interface{}) {
-	l.Output(&Message{DEBUG, fmt.Sprintf(format, v...), time.Now()})
+	l.output(&Message{DEBUG, fmt.Sprintf(format, v...), time.Now()})
 }
 
 func (l *FileLogger) Trace(format string, v ...interface{}) {
-	l.Output(&Message{TRACE, fmt.Sprintf(format, v...), time.Now()})
+	l.output(&Message{TRACE, fmt.Sprintf(format, v...), time.Now()})
 }

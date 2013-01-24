@@ -21,7 +21,7 @@ func NewConsoleLogger(o int) (l *ConsoleLogger) {
 
 // Generic output function. Outputs messages if they are higher level than outLevel for this
 // specific logger. If msg does not end with a newline, one will be appended.
-func (l *ConsoleLogger) Output(msg *Message) {
+func (l *ConsoleLogger) output(msg *Message) {
 	if msg.level < l.outLevel {
 		return
 	}
@@ -49,25 +49,25 @@ func (l *ConsoleLogger) Level(o int) {
 }
 
 func (l *ConsoleLogger) Fatal(format string, v ...interface{}) {
-	l.Output(&Message{FATAL, fmt.Sprintf(format, v...), time.Now()})
+	l.output(&Message{FATAL, fmt.Sprintf(format, v...), time.Now()})
 }
 
 func (l *ConsoleLogger) Error(format string, v ...interface{}) {
-	l.Output(&Message{ERROR, fmt.Sprintf(format, v...), time.Now()})
+	l.output(&Message{ERROR, fmt.Sprintf(format, v...), time.Now()})
 }
 
 func (l *ConsoleLogger) Warn(format string, v ...interface{}) {
-	l.Output(&Message{WARN, fmt.Sprintf(format, v...), time.Now()})
+	l.output(&Message{WARN, fmt.Sprintf(format, v...), time.Now()})
 }
 
 func (l *ConsoleLogger) Info(format string, v ...interface{}) {
-	l.Output(&Message{INFO, fmt.Sprintf(format, v...), time.Now()})
+	l.output(&Message{INFO, fmt.Sprintf(format, v...), time.Now()})
 }
 
 func (l *ConsoleLogger) Debug(format string, v ...interface{}) {
-	l.Output(&Message{DEBUG, fmt.Sprintf(format, v...), time.Now()})
+	l.output(&Message{DEBUG, fmt.Sprintf(format, v...), time.Now()})
 }
 
 func (l *ConsoleLogger) Trace(format string, v ...interface{}) {
-	l.Output(&Message{TRACE, fmt.Sprintf(format, v...), time.Now()})
+	l.output(&Message{TRACE, fmt.Sprintf(format, v...), time.Now()})
 }
