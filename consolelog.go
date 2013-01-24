@@ -48,7 +48,8 @@ func (l *ConsoleLogger) Level(o int) {
 	}
 }
 
-func (l *ConsoleLogger) Close() {
+func (l *ConsoleLogger) Close() error {
+	return nil
 }
 
 func (l *ConsoleLogger) Fatal(format string, v ...interface{}) {

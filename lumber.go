@@ -34,8 +34,9 @@ type Logger interface {
 	Info(format string, v ...interface{})
 	Debug(format string, v ...interface{})
 	Trace(format string, v ...interface{})
-	output(level int, format string, v ...interface{})
-	Close()
+	output(msg *Message)
+	// output(level int, format string, v ...interface{})
+	Close() error
 }
 
 type Message struct {
