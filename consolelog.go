@@ -48,6 +48,9 @@ func (l *ConsoleLogger) Level(o int) {
 	}
 }
 
+func (l *ConsoleLogger) Close() {
+}
+
 func (l *ConsoleLogger) Fatal(format string, v ...interface{}) {
 	l.output(&Message{FATAL, fmt.Sprintf(format, v...), time.Now()})
 }
