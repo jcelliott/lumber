@@ -1,3 +1,6 @@
+// TODO:
+//  - Add an optional prefix to log messages
+
 package lumber
 
 import (
@@ -35,7 +38,18 @@ type Message struct {
 }
 
 func TimeFormat(f string) {
-	timeFormat = f
+	stdLog.TimeFormat(f)
+}
+
+func LvlStr(l int) string {
+	if l >= TRACE && l <= FATAL {
+		return levels[l]
+	}
+	return ""
+}
+
+func Level(o int) {
+	stdLog.Level(o)
 }
 
 func Fatal(format string, v ...interface{}) {

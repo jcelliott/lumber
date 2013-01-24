@@ -42,6 +42,12 @@ func (l *ConsoleLogger) TimeFormat(f string) {
 	l.timeFormat = f
 }
 
+func (l *ConsoleLogger) Level(o int) {
+	if o >= TRACE && o <= FATAL {
+		l.outLevel = o
+	}
+}
+
 func (l *ConsoleLogger) Fatal(format string, v ...interface{}) {
 	l.Output(&Message{FATAL, fmt.Sprintf(format, v...), time.Now()})
 }

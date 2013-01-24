@@ -1,3 +1,10 @@
+/*
+ * TODO:
+ *  - Logging to a FileLogger will write the message to a channel of Messages.
+ *    A separate goroutine will consume messages from the channel and write
+ *    them to the file
+ */
+
 package lumber
 
 import (
@@ -18,14 +25,6 @@ type FileLogger struct {
 	timeFormat string
 }
 
-/*
- * TODO:
- *  - Implement log file rotation
- *  - Logging to a FileLogger will write the message to a channel of Messages.
- *    A separate goroutine will consume messages from the channel and write
- *    them to the file
- */
-
 func NewFileLogger(f string, o, mode int) (l *FileLogger, err error) {
 	var file *os.File
 	if mode == TRUNC {
@@ -39,7 +38,7 @@ func NewFileLogger(f string, o, mode int) (l *FileLogger, err error) {
 		return
 	}
 	if err != nil {
-		err = fmt.Errorf("Error opening file for logging: %s", err)
+		err = fmt.Errorf("Error opening file '%s' for logging: %s", f, err)
 		return
 	}
 
@@ -52,7 +51,7 @@ func openBackup(f string, mode int) (*os.File, error) {
 	// First try to open the file with O_EXCL (file must not already exist)
 	file, err := os.OpenFile(f, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
 	if err == nil {
-		return nil, err
+		return file, nil
 	}
 	if !os.IsExist(err) {
 		return nil, fmt.Errorf("Error opening file for logging: %s", err)
@@ -103,10 +102,30 @@ func (l *FileLogger) TimeFormat(f string) {
 	l.timeFormat = f
 }
 
+func (l *FileLogger) Level(o int) {
+	if o >= TRACE && o <= FATAL {
+		l.outLevel = o
+	}
+}
+
 func (l *FileLogger) MsgBufSize(s int) {
 	if s >= 0 {
 		l.queue = make(chan Message, MSGBUFSIZE)
 	}
+}
+
+func (l *FileLogger) Close() (err error) {
+	err = l.out.Sync()
+	if err != nil {
+		l.Error("Could not sync log file")
+		err = fmt.Errorf("Could not sync log file: %s", err)
+	}
+	err = l.out.Close()
+	if err != nil {
+		l.Error("Could not close log file")
+		err = fmt.Errorf("Could not close log file: %s", err)
+	}
+	return
 }
 
 func (l *FileLogger) Fatal(format string, v ...interface{}) {
