@@ -43,24 +43,29 @@ func (l *ConsoleLogger) output(msg *Message) {
 	l.out.Write(buf)
 }
 
+// Sets the output level for this logger
 func (l *ConsoleLogger) Level(o int) {
 	if o >= TRACE && o <= FATAL {
 		l.outLevel = o
 	}
 }
 
+// Sets the prefix for this logger
 func (l *ConsoleLogger) Prefix(p string) {
 	l.prefix = p
 }
 
+// Sets the time format for this logger
 func (l *ConsoleLogger) TimeFormat(f string) {
 	l.timeFormat = f
 }
 
+// Close the logger (For a console logger this is just a noop)
 func (l *ConsoleLogger) Close() error {
 	return nil
 }
 
+// Logging functions
 func (l *ConsoleLogger) Fatal(format string, v ...interface{}) {
 	l.output(&Message{FATAL, fmt.Sprintf(format, v...), time.Now()})
 }

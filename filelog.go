@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	// mode constants
 	BACKUP = -2
 	TRUNC  = -1
 	APPEND = 0
@@ -27,7 +28,9 @@ type FileLogger struct {
 	prefix     string
 }
 
-// Creates a new FileLogger with filename f, log output level o, and mode (BACKUP|TRUNC|APPEND)
+// Creates a new FileLogger with filename f, output level o, mode, and an empty prefix
+// Modes are APPEND (append to existing log if it exists), TRUNC (truncate old log file to create
+// the new one), BACKUP (moves old log to log.name.1 before creaing new log).
 func NewFileLogger(f string, o, mode int) (l *FileLogger, err error) {
 	var file *os.File
 	if mode == TRUNC {
@@ -50,6 +53,7 @@ func NewFileLogger(f string, o, mode int) (l *FileLogger, err error) {
 	return
 }
 
+// Attempt to create new log. If the file already exists, backup the old one and create a new file
 func openBackup(f string, mode int) (*os.File, error) {
 	// First try to open the file with O_EXCL (file must not already exist)
 	file, err := os.OpenFile(f, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
@@ -80,6 +84,7 @@ func openBackup(f string, mode int) (*os.File, error) {
 	return file, err
 }
 
+// Rename "log.name" to "log.name.1"
 func backup(f *os.File) error {
 	return os.Rename(f.Name(), fmt.Sprintf("%s.1", f.Name()))
 }
@@ -107,26 +112,32 @@ func (l *FileLogger) output(msg *Message) {
 	l.out.Write(buf)
 }
 
+// Sets the output level for this logger
 func (l *FileLogger) Level(o int) {
 	if o >= TRACE && o <= FATAL {
 		l.outLevel = o
 	}
 }
 
+// Sets the prefix for this logger
 func (l *FileLogger) Prefix(p string) {
 	l.prefix = p
 }
 
+// Sets the time format for this logger
 func (l *FileLogger) TimeFormat(f string) {
 	l.timeFormat = f
 }
 
+// Sets the message buffer size for this logger, and clears all messages in the buffer
+// For best results, use before any logging is done
 func (l *FileLogger) MsgBufSize(s int) {
 	if s >= 0 {
 		l.queue = make(chan Message, MSGBUFSIZE)
 	}
 }
 
+// Flush anything that hasn't been written and close the logger
 func (l *FileLogger) Close() (err error) {
 	err = l.out.Sync()
 	if err != nil {
@@ -141,6 +152,7 @@ func (l *FileLogger) Close() (err error) {
 	return
 }
 
+// Logging functions
 func (l *FileLogger) Fatal(format string, v ...interface{}) {
 	l.output(&Message{FATAL, fmt.Sprintf(format, v...), time.Now()})
 }
