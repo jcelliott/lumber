@@ -35,6 +35,8 @@ type Logger interface {
 	Debug(string, ...interface{})
 	Trace(string, ...interface{})
 	Level(int)
+	Prefix(string)
+	TimeFormat(string)
 	Close() error
 	output(msg *Message)
 }

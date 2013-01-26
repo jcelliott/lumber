@@ -24,6 +24,7 @@ type FileLogger struct {
 	out        *os.File
 	outLevel   int
 	timeFormat string
+	prefix     string
 }
 
 // Creates a new FileLogger with filename f, log output level o, and mode (BACKUP|TRUNC|APPEND)
@@ -44,7 +45,7 @@ func NewFileLogger(f string, o, mode int) (l *FileLogger, err error) {
 		return
 	}
 
-	l = &FileLogger{make(chan Message, MSGBUFSIZE), file, o, TIMEFORMAT}
+	l = &FileLogger{make(chan Message, MSGBUFSIZE), file, o, TIMEFORMAT, ""}
 
 	return
 }
@@ -92,6 +93,10 @@ func (l *FileLogger) output(msg *Message) {
 
 	buf := []byte{}
 	buf = append(buf, msg.time.Format(l.timeFormat)...)
+	if l.prefix != "" {
+		buf = append(buf, ' ')
+		buf = append(buf, l.prefix...)
+	}
 	buf = append(buf, ' ')
 	buf = append(buf, levels[msg.level]...)
 	buf = append(buf, ' ')
@@ -102,14 +107,18 @@ func (l *FileLogger) output(msg *Message) {
 	l.out.Write(buf)
 }
 
-func (l *FileLogger) TimeFormat(f string) {
-	l.timeFormat = f
-}
-
 func (l *FileLogger) Level(o int) {
 	if o >= TRACE && o <= FATAL {
 		l.outLevel = o
 	}
+}
+
+func (l *FileLogger) Prefix(p string) {
+	l.prefix = p
+}
+
+func (l *FileLogger) TimeFormat(f string) {
+	l.timeFormat = f
 }
 
 func (l *FileLogger) MsgBufSize(s int) {

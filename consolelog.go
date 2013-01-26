@@ -11,11 +11,12 @@ type ConsoleLogger struct {
 	out        io.Writer
 	outLevel   int
 	timeFormat string
+	prefix     string
 }
 
 // Create a new console logger
 func NewConsoleLogger(o int) (l *ConsoleLogger) {
-	l = &ConsoleLogger{os.Stdout, o, TIMEFORMAT}
+	l = &ConsoleLogger{os.Stdout, o, TIMEFORMAT, ""}
 	return
 }
 
@@ -28,6 +29,10 @@ func (l *ConsoleLogger) output(msg *Message) {
 
 	buf := []byte{}
 	buf = append(buf, msg.time.Format(l.timeFormat)...)
+	if l.prefix != "" {
+		buf = append(buf, ' ')
+		buf = append(buf, l.prefix...)
+	}
 	buf = append(buf, ' ')
 	buf = append(buf, levels[msg.level]...)
 	buf = append(buf, ' ')
@@ -38,14 +43,18 @@ func (l *ConsoleLogger) output(msg *Message) {
 	l.out.Write(buf)
 }
 
-func (l *ConsoleLogger) TimeFormat(f string) {
-	l.timeFormat = f
-}
-
 func (l *ConsoleLogger) Level(o int) {
 	if o >= TRACE && o <= FATAL {
 		l.outLevel = o
 	}
+}
+
+func (l *ConsoleLogger) Prefix(p string) {
+	l.prefix = p
+}
+
+func (l *ConsoleLogger) TimeFormat(f string) {
+	l.timeFormat = f
 }
 
 func (l *ConsoleLogger) Close() error {
