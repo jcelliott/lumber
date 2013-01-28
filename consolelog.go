@@ -14,7 +14,7 @@ type ConsoleLogger struct {
 	prefix     string
 }
 
-// Create a new console logger
+// Create a new console logger with output level o, and an empty prefix
 func NewConsoleLogger(o int) (l *ConsoleLogger) {
 	l = &ConsoleLogger{os.Stdout, o, TIMEFORMAT, ""}
 	return

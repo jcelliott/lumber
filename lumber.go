@@ -14,14 +14,13 @@ const (
 	FATAL
 
 	TIMEFORMAT = "2006/01/02 15:04:05"
-	MSGBUFSIZE = 50
+	MSGBUFSIZE = 100
 )
 
 var (
 	stdLog     = NewConsoleLogger(INFO)
 	levels     = [...]string{"TRACE", "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL"}
 	timeFormat = "2006/01/02 15:04:05"
-	msgBufSize = 50
 )
 
 type Logger interface {

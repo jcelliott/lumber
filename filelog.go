@@ -33,13 +33,14 @@ type FileLogger struct {
 // the new one), BACKUP (moves old log to log.name.1 before creaing new log).
 func NewFileLogger(f string, o, mode int) (l *FileLogger, err error) {
 	var file *os.File
-	if mode == TRUNC {
+	switch {
+	case mode == TRUNC:
 		file, err = os.OpenFile(f, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	} else if mode == APPEND {
+	case mode == APPEND:
 		file, err = os.OpenFile(f, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
-	} else if mode > 0 {
+	case mode > 0:
 		file, err = openBackup(f, mode)
-	} else {
+	default:
 		err = fmt.Errorf("Invalid mode parameter: %d", mode)
 		return
 	}
@@ -50,6 +51,9 @@ func NewFileLogger(f string, o, mode int) (l *FileLogger, err error) {
 
 	l = &FileLogger{make(chan Message, MSGBUFSIZE), file, o, TIMEFORMAT, ""}
 
+	go func() {
+
+	}()
 	return
 }
 
