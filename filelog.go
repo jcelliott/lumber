@@ -21,17 +21,20 @@ const (
 )
 
 type FileLogger struct {
-	queue      chan Message
+	queue      chan *Message
 	out        *os.File
 	outLevel   int
 	timeFormat string
 	prefix     string
+	done       chan bool
 }
 
 // Creates a new FileLogger with filename f, output level o, mode, and an empty prefix
 // Modes are APPEND (append to existing log if it exists), TRUNC (truncate old log file to create
 // the new one), BACKUP (moves old log to log.name.1 before creaing new log).
-func NewFileLogger(f string, o, mode int) (l *FileLogger, err error) {
+// buf specifies the buffer size. Set to 0 for an unbuffered logger. If a buffer is used, the log
+// *must* be Close'd to prevent data loss.
+func NewFileLogger(f string, o, mode, buf int) (l *FileLogger, err error) {
 	var file *os.File
 	switch {
 	case mode == TRUNC:
@@ -49,10 +52,17 @@ func NewFileLogger(f string, o, mode int) (l *FileLogger, err error) {
 		return
 	}
 
-	l = &FileLogger{make(chan Message, MSGBUFSIZE), file, o, TIMEFORMAT, ""}
+	l = &FileLogger{make(chan *Message, buf), file, o, TIMEFORMAT, "", make(chan bool)}
 
 	go func() {
-
+		for {
+			m, ok := <-l.queue
+			if !ok {
+				l.done <- true
+				return
+			}
+			l.output(m)
+		}
 	}()
 	return
 }
@@ -133,16 +143,11 @@ func (l *FileLogger) TimeFormat(f string) {
 	l.timeFormat = f
 }
 
-// Sets the message buffer size for this logger, and clears all messages in the buffer
-// For best results, use before any logging is done
-func (l *FileLogger) MsgBufSize(s int) {
-	if s >= 0 {
-		l.queue = make(chan Message, MSGBUFSIZE)
-	}
-}
-
-// Flush anything that hasn't been written and close the logger
+// Flush anything that hasn't been written and close the logger. If the FileLogger was created with
+// a buffer size > 0, Close *must* be called to prevent losing data.
 func (l *FileLogger) Close() (err error) {
+	close(l.queue)
+	<-l.done
 	err = l.out.Sync()
 	if err != nil {
 		l.Error("Could not sync log file")
@@ -158,25 +163,25 @@ func (l *FileLogger) Close() (err error) {
 
 // Logging functions
 func (l *FileLogger) Fatal(format string, v ...interface{}) {
-	l.output(&Message{FATAL, fmt.Sprintf(format, v...), time.Now()})
+	l.queue <- &Message{FATAL, fmt.Sprintf(format, v...), time.Now()}
 }
 
 func (l *FileLogger) Error(format string, v ...interface{}) {
-	l.output(&Message{ERROR, fmt.Sprintf(format, v...), time.Now()})
+	l.queue <- &Message{ERROR, fmt.Sprintf(format, v...), time.Now()}
 }
 
 func (l *FileLogger) Warn(format string, v ...interface{}) {
-	l.output(&Message{WARN, fmt.Sprintf(format, v...), time.Now()})
+	l.queue <- &Message{WARN, fmt.Sprintf(format, v...), time.Now()}
 }
 
 func (l *FileLogger) Info(format string, v ...interface{}) {
-	l.output(&Message{INFO, fmt.Sprintf(format, v...), time.Now()})
+	l.queue <- &Message{INFO, fmt.Sprintf(format, v...), time.Now()}
 }
 
 func (l *FileLogger) Debug(format string, v ...interface{}) {
-	l.output(&Message{DEBUG, fmt.Sprintf(format, v...), time.Now()})
+	l.queue <- &Message{DEBUG, fmt.Sprintf(format, v...), time.Now()}
 }
 
 func (l *FileLogger) Trace(format string, v ...interface{}) {
-	l.output(&Message{TRACE, fmt.Sprintf(format, v...), time.Now()})
+	l.queue <- &Message{TRACE, fmt.Sprintf(format, v...), time.Now()}
 }
