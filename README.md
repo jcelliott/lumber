@@ -12,7 +12,6 @@ A simple logger for Go.
 
 Todo:
 - Log rotation
-- Buffered file logger
 
 ###Usage:###
 Log to the default (console) logger  

@@ -1,10 +1,3 @@
-/*
- * TODO:
- *  - Logging to a FileLogger will write the message to a channel of Messages.
- *    A separate goroutine will consume messages from the channel and write
- *    them to the file
- */
-
 package lumber
 
 import (
@@ -21,7 +14,6 @@ const (
 )
 
 type FileLogger struct {
-	queue      chan Message
 	out        *os.File
 	outLevel   int
 	timeFormat string
@@ -49,11 +41,7 @@ func NewFileLogger(f string, o, mode int) (l *FileLogger, err error) {
 		return
 	}
 
-	l = &FileLogger{make(chan Message, MSGBUFSIZE), file, o, TIMEFORMAT, ""}
-
-	go func() {
-
-	}()
+	l = &FileLogger{file, o, TIMEFORMAT, ""}
 	return
 }
 
@@ -131,14 +119,6 @@ func (l *FileLogger) Prefix(p string) {
 // Sets the time format for this logger
 func (l *FileLogger) TimeFormat(f string) {
 	l.timeFormat = f
-}
-
-// Sets the message buffer size for this logger, and clears all messages in the buffer
-// For best results, use before any logging is done
-func (l *FileLogger) MsgBufSize(s int) {
-	if s >= 0 {
-		l.queue = make(chan Message, MSGBUFSIZE)
-	}
 }
 
 // Flush anything that hasn't been written and close the logger
