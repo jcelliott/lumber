@@ -18,6 +18,8 @@ type FileLogger struct {
 	outLevel   int
 	timeFormat string
 	prefix     string
+	maxLines   int
+	lines      int
 }
 
 // Creates a new FileLogger with filename f, output level o, mode, and an empty prefix
@@ -41,7 +43,8 @@ func NewFileLogger(f string, o, mode int) (l *FileLogger, err error) {
 		return
 	}
 
-	l = &FileLogger{file, o, TIMEFORMAT, ""}
+	l = &FileLogger{file, o, TIMEFORMAT, "", mode, 0}
+
 	return
 }
 
@@ -77,8 +80,16 @@ func openBackup(f string, mode int) (*os.File, error) {
 }
 
 // Rename "log.name" to "log.name.1"
-func backup(f *os.File) error {
-	return os.Rename(f.Name(), fmt.Sprintf("%s.1", f.Name()))
+func (l *FileLogger) backup() (*os.File, error) {
+	err := os.Rename(l.out.Name(), fmt.Sprintf("%s.1", l.out.Name()))
+	if err != nil {
+		return nil, fmt.Errorf("Error backing up log: %s", err)
+	}
+	file, err := os.OpenFile(l.out.Name(), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, fmt.Errorf("Error opening file for logging: %s", err)
+	}
+	return file, nil
 }
 
 // Generic output function. Outputs messages if they are higher level than outLevel for this
@@ -86,6 +97,14 @@ func backup(f *os.File) error {
 func (l *FileLogger) output(msg *Message) {
 	if msg.level < l.outLevel {
 		return
+	}
+	if l.lines >= l.maxLines {
+		out, err := l.backup()
+		if err != nil {
+			fmt.Println("Error backing up log:", err)
+		} else {
+			l.out = out
+		}
 	}
 
 	buf := []byte{}
@@ -101,6 +120,7 @@ func (l *FileLogger) output(msg *Message) {
 	if len(msg.m) > 0 && msg.m[len(msg.m)-1] != '\n' {
 		buf = append(buf, '\n')
 	}
+	l.lines += 1
 	l.out.Write(buf)
 }
 
