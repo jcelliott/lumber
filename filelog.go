@@ -1,14 +1,15 @@
 package lumber
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	// "path/filepath"
 	"time"
 )
 
 const (
 	// mode constants
-	BACKUP = -2
 	TRUNC  = -1
 	APPEND = 0
 )
@@ -18,60 +19,103 @@ type FileLogger struct {
 	outLevel   int
 	timeFormat string
 	prefix     string
-	maxLines   int
-	lines      int
+	lineMode   int
+	curLines   int
+	rotateMode int
 }
 
 // Creates a new FileLogger with filename f, output level o, mode, and an empty prefix
 // Modes are APPEND (append to existing log if it exists), TRUNC (truncate old log file to create
 // the new one), BACKUP (moves old log to log.name.1 before creaing new log).
-func NewFileLogger(f string, o, mode int) (l *FileLogger, err error) {
+
+// lineMode: -1 == truncate, 0 == no limit
+// rotateModeMode: 0 == no backups
+
+func NewFileLogger(f string, o, lineMode, rotateMode int) (l *FileLogger, err error) {
 	var file *os.File
-	switch {
-	case mode == TRUNC:
-		file, err = os.OpenFile(f, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	case mode == APPEND:
-		file, err = os.OpenFile(f, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
-	case mode > 0:
-		file, err = openBackup(f, mode)
-	default:
-		err = fmt.Errorf("Invalid mode parameter: %d", mode)
-		return
+
+	if rotateMode <= 0 { // no rotation
+		switch {
+		case lineMode == TRUNC:
+			// just truncate file and start logging
+			file, err = os.OpenFile(f, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		case lineMode == APPEND:
+			// open log file, append if it already exists
+			file, err = os.OpenFile(f, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+		case lineMode > 0:
+			// line limit, but no backups: file-internal rotation
+			// file, err = os.OpenFile(f, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+			err = fmt.Errorf("File-internal rotation is not implemented yet")
+			return
+		default:
+			err = fmt.Errorf("Invalid mode parameter: %d", lineMode)
+			return
+		}
+	} else { // rotation
+		switch {
+		case lineMode == TRUNC:
+			// rotateMode every time a new logger is created
+			file, err = openBackup(f, lineMode)
+		case lineMode == APPEND:
+			// this doesn't make any sense
+			err = fmt.Errorf("Cannot use APPEND with log rotation")
+			return
+		case lineMode > 0:
+			// "normal" rotation, when file reaches line limit
+			file, err = openBackup(f, lineMode)
+		default:
+			err = fmt.Errorf("Invalid mode parameter: %d", lineMode)
+			return
+		}
 	}
+
 	if err != nil {
 		err = fmt.Errorf("Error opening file '%s' for logging: %s", f, err)
 		return
 	}
 
-	l = &FileLogger{file, o, TIMEFORMAT, "", mode, 0}
+	l = &FileLogger{
+		out:        file,
+		outLevel:   o,
+		timeFormat: TIMEFORMAT,
+		prefix:     "",
+		lineMode:   lineMode,
+		curLines:   0,
+		rotateMode: rotateMode,
+	}
 
 	return
 }
 
-// Attempt to create new log. If the file already exists, backup the old one and create a new file
-func openBackup(f string, mode int) (*os.File, error) {
+// Attempt to create new log. Specific behavior depends on the lineMode setting
+func openBackup(f string, lineMode int) (*os.File, error) {
 	// First try to open the file with O_EXCL (file must not already exist)
-	file, err := os.OpenFile(f, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
+	file, err := os.OpenFile(f, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0644)
+	// If there are no errors, we can just use this file
 	if err == nil {
 		return file, nil
 	}
+	// If the error wasn't an 'Exist' error, we've got a problem
 	if !os.IsExist(err) {
 		return nil, fmt.Errorf("Error opening file for logging: %s", err)
 	}
 
-	// The file already exists, we need to back it up
-	err = os.Rename(f, fmt.Sprintf("%s.1", f))
+	// The file already exists, open it
+	file, err = os.OpenFile(f, os.O_RDWR|os.O_APPEND, 0644)
 	if err != nil {
-		backupErr := fmt.Errorf("Error backing up log: %s", err)
-		file, err = os.OpenFile(f, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
-		if err != nil {
-			return nil, fmt.Errorf("%s. Error appending to existing log file: %s", backupErr, err)
-		}
-		return file, backupErr
+		return nil, fmt.Errorf("Error opening file for logging: %s", err)
 	}
 
-	// Open new file for log
-	file, err = os.OpenFile(f, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	// If we're considering lines, check the line count
+	if lineMode > 0 {
+		// If its still under the line limit, just return the file
+		if countLines(file) < lineMode {
+			return file, nil
+		}
+	}
+
+	// Either we're always rotating or we're over the line limit, we need to rotate
+	file, err = doRotate(f)
 	if err != nil {
 		return nil, fmt.Errorf("Error opening file for logging: %s", err)
 	}
@@ -79,13 +123,34 @@ func openBackup(f string, mode int) (*os.File, error) {
 	return file, err
 }
 
-// Rename "log.name" to "log.name.1"
-func (l *FileLogger) backup() (*os.File, error) {
-	err := os.Rename(l.out.Name(), fmt.Sprintf("%s.1", l.out.Name()))
+// Rotate the logs
+func (l *FileLogger) rotate() error {
+	file, err := doRotate(l.out.Name())
 	if err != nil {
-		return nil, fmt.Errorf("Error backing up log: %s", err)
+		return fmt.Errorf("Error rotating logs: %s", err)
 	}
-	file, err := os.OpenFile(l.out.Name(), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	l.out = file
+	return nil
+}
+
+// Rotate all the logs and return newly vacated file
+// Rename 'log.name' to 'log.name.1' and 'log.name.1' to 'log.name.2' etc
+func doRotate(f string) (*os.File, error) {
+	// get all rotated files
+	// TODO: implement this with a real regex so we don't accidentally get a file we shouldn't
+	// list, err := filepath.Glob(fmt.Sprintf("%s.*", f))
+	// reverse sort files
+	// for file := range list {
+	// strings.LastIndex(some stuff here)
+	// get the integer part
+	// increment it
+	// rename file with that extension
+	// }
+	err := os.Rename(f, fmt.Sprintf("%s.1", f))
+	if err != nil {
+		return nil, fmt.Errorf("Error rotating logs: %s", err)
+	}
+	file, err := os.OpenFile(f, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("Error opening file for logging: %s", err)
 	}
@@ -98,12 +163,10 @@ func (l *FileLogger) output(msg *Message) {
 	if msg.level < l.outLevel {
 		return
 	}
-	if l.lines >= l.maxLines {
-		out, err := l.backup()
+	if l.lineMode > 0 && l.curLines >= l.lineMode {
+		err := l.rotate()
 		if err != nil {
-			fmt.Println("Error backing up log:", err)
-		} else {
-			l.out = out
+			Error("Error backing up log:", err)
 		}
 	}
 
@@ -120,7 +183,7 @@ func (l *FileLogger) output(msg *Message) {
 	if len(msg.m) > 0 && msg.m[len(msg.m)-1] != '\n' {
 		buf = append(buf, '\n')
 	}
-	l.lines += 1
+	l.curLines += 1
 	l.out.Write(buf)
 }
 
@@ -154,6 +217,24 @@ func (l *FileLogger) Close() (err error) {
 		err = fmt.Errorf("Could not close log file: %s", err)
 	}
 	return
+}
+
+// return the number of lines in the given file
+func countLines(f *os.File) int {
+	r := bufio.NewReader(f)
+	count := 0
+	var err error = nil
+	for err == nil {
+		prefix := true
+		_, prefix, err = r.ReadLine()
+		if err != nil {
+		}
+		// sometimes we don't get the whole line at once
+		if !prefix && err == nil {
+			count++
+		}
+	}
+	return count
 }
 
 // Logging functions
