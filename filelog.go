@@ -103,7 +103,11 @@ func (l *FileLogger) output(msg *Message) {
 		if err != nil {
 			fmt.Println("Error backing up log:", err)
 		} else {
+			tmpOut := l.out
 			l.out = out
+			if tmpOut != nil {
+				tmpOut.Close()
+			}
 		}
 	}
 
