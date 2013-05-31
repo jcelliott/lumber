@@ -3,7 +3,7 @@ lumber
 
 A simple logger for Go.
 
-###Features:###
+### Features: ###
 - Log levels
 - Console logger
 - File logger
@@ -13,7 +13,7 @@ A simple logger for Go.
 Todo:
 - Log rotation
 
-###Usage:###
+### Usage: ###
 Log to the default (console) logger  
   `lumber.Error("An error message")` etc.
 
@@ -27,3 +27,13 @@ Add a prefix to label different logs
   `log.Prefix("APP")`
 
 And that's all.
+
+### Modes: ###
+
+APPEND: Append if the file exists, otherwise create a new file
+
+TRUNC: Open and truncate the file, regardless of whether it already exists
+
+BACKUP: Rotate the log every time a new logger is created
+
+ROTATE: Append if the file exists, when the log reaches maxLines rotate files
