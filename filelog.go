@@ -19,7 +19,13 @@ const (
 	ROTATE
 )
 
+const (
+	BUFSIZE = 100
+)
+
 type FileLogger struct {
+	queue      chan *Message
+	done       chan bool
 	out        *os.File
 	outLevel   int
 	timeFormat string
@@ -32,28 +38,28 @@ type FileLogger struct {
 
 // Convenience function to create a new append-only logger
 func NewAppendLogger(f string) (*FileLogger, error) {
-	return NewFileLogger(f, INFO, APPEND, 0, 0)
+	return NewFileLogger(f, INFO, APPEND, 0, 0, BUFSIZE)
 }
 
 // Convenience function to create a new truncating logger
 func NewTruncateLogger(f string) (*FileLogger, error) {
-	return NewFileLogger(f, INFO, TRUNC, 0, 0)
+	return NewFileLogger(f, INFO, TRUNC, 0, 0, BUFSIZE)
 }
 
 // Convenience function to create a new backup logger
 func NewBackupLogger(f string, maxBackup int) (*FileLogger, error) {
-	return NewFileLogger(f, INFO, BACKUP, 0, maxBackup)
+	return NewFileLogger(f, INFO, BACKUP, 0, maxBackup, BUFSIZE)
 }
 
 // Convenience function to create a new rotating logger
 func NewRotateLogger(f string, maxLines, maxRotate int) (*FileLogger, error) {
-	return NewFileLogger(f, INFO, ROTATE, maxLines, maxRotate)
+	return NewFileLogger(f, INFO, ROTATE, maxLines, maxRotate, BUFSIZE)
 }
 
 // Creates a new FileLogger with filename f, output level o, and an empty prefix.
 // Modes are described in the documentation; maxLines and maxRotate are only significant
 // for some modes.
-func NewFileLogger(f string, o, mode, maxLines, maxRotate int) (l *FileLogger, err error) {
+func NewFileLogger(f string, o, mode, maxLines, maxRotate, bufsize int) (l *FileLogger, err error) {
 	var file *os.File
 
 	switch mode {
@@ -77,6 +83,8 @@ func NewFileLogger(f string, o, mode, maxLines, maxRotate int) (l *FileLogger, e
 	}
 
 	l = &FileLogger{
+		queue:      make(chan *Message, bufsize),
+		done:       make(chan bool),
 		out:        file,
 		outLevel:   o,
 		timeFormat: TIMEFORMAT,
@@ -90,6 +98,17 @@ func NewFileLogger(f string, o, mode, maxLines, maxRotate int) (l *FileLogger, e
 		// get the current line count if relevant
 		l.curLines = countLines(l.out)
 	}
+
+	go func() {
+		for {
+			m, ok := <-l.queue
+			if !ok {
+				l.done <- true
+				return
+			}
+			l.output(m)
+		}
+	}()
 	return
 }
 
@@ -117,7 +136,6 @@ func openBackup(f string, maxLines, maxRotate int) (*os.File, error) {
 
 // Rotate the logs
 func (l *FileLogger) rotate() error {
-	l.output(&Message{LOG, "Rotating log", time.Now()})
 	oldFile := l.out
 	file, err := doRotate(l.out.Name(), l.maxRotate)
 	if err != nil {
@@ -172,7 +190,7 @@ func (l *FileLogger) output(msg *Message) {
 	if l.mode == ROTATE && l.curLines >= l.maxLines {
 		err := l.rotate()
 		if err != nil {
-			Error("Error backing up log:", err)
+			Error(err.Error())
 		}
 	}
 
@@ -210,8 +228,11 @@ func (l *FileLogger) TimeFormat(f string) {
 	l.timeFormat = f
 }
 
-// Flush anything that hasn't been written and close the logger
+// Flush anything that hasn't been written and close the logger. If the FileLogger was created with
+// a buffer size > 0, Close *must* be called to prevent losing data.
 func (l *FileLogger) Close() (err error) {
+	close(l.queue)
+	<-l.done
 	err = l.out.Sync()
 	if err != nil {
 		l.Error("Could not sync log file")
@@ -245,25 +266,25 @@ func countLines(f *os.File) int {
 
 // Logging functions
 func (l *FileLogger) Fatal(format string, v ...interface{}) {
-	l.output(&Message{FATAL, fmt.Sprintf(format, v...), time.Now()})
+	l.queue <- &Message{FATAL, fmt.Sprintf(format, v...), time.Now()}
 }
 
 func (l *FileLogger) Error(format string, v ...interface{}) {
-	l.output(&Message{ERROR, fmt.Sprintf(format, v...), time.Now()})
+	l.queue <- &Message{ERROR, fmt.Sprintf(format, v...), time.Now()}
 }
 
 func (l *FileLogger) Warn(format string, v ...interface{}) {
-	l.output(&Message{WARN, fmt.Sprintf(format, v...), time.Now()})
+	l.queue <- &Message{WARN, fmt.Sprintf(format, v...), time.Now()}
 }
 
 func (l *FileLogger) Info(format string, v ...interface{}) {
-	l.output(&Message{INFO, fmt.Sprintf(format, v...), time.Now()})
+	l.queue <- &Message{INFO, fmt.Sprintf(format, v...), time.Now()}
 }
 
 func (l *FileLogger) Debug(format string, v ...interface{}) {
-	l.output(&Message{DEBUG, fmt.Sprintf(format, v...), time.Now()})
+	l.queue <- &Message{DEBUG, fmt.Sprintf(format, v...), time.Now()}
 }
 
 func (l *FileLogger) Trace(format string, v ...interface{}) {
-	l.output(&Message{TRACE, fmt.Sprintf(format, v...), time.Now()})
+	l.queue <- &Message{TRACE, fmt.Sprintf(format, v...), time.Now()}
 }
