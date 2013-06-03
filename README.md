@@ -3,27 +3,48 @@ lumber
 
 A simple logger for Go.
 
-###Features:###
-- Log levels
-- Console logger
-- File logger
-- Log backup
-- Log prefixes
+Provides console and file loggers that support 6 log levels. The file logger supports log backup and
+rotation.
 
-Todo:
-- Log rotation
+### Usage: ###
+Log to the default (console) logger
 
-###Usage:###
-Log to the default (console) logger  
-  `lumber.Error("An error message")` etc.
+    lumber.Error("An error message")
 
-Create a new console logger that only logs messages of level INFO or higher  
-  `log := lumber.NewConsoleLogger(lumber.INFO)`
+Create a new console logger that only logs messages of level WARN or higher
+
+    log := lumber.NewConsoleLogger(lumber.WARN)
+
+Change the log level for a logger
+
+    log.Level(lumber.INFO)
   
-Create a new file logger (rotating at 1000 lines)  
-  `log := lumber.NewFileLogger("filename.log", lumber.DEBUG, 1000)`
+Create a new file logger that rotates at 5000 lines (up to 9 backups) with a 100 message buffer
 
-Add a prefix to label different logs  
-  `log.Prefix("APP")`
+    log := lumber.NewFileLogger("filename.log", lumber.INFO, lumber.ROTATE, 5000, 9, 100)
+    // or
+    log := lumber.NewRotateLogger("filename.log", 5000, 9)
 
-And that's all.
+Send messages to the log
+
+    // the log methods use fmt.Printf() syntax
+    log.Trace("the %s log level", "lowest")
+    log.Debug("")
+    log.Info("the default log level")
+    log.Warn("")
+    log.Error("")
+    log.Fatal("the %s log level", "highest")
+
+Add a prefix to label different logs
+
+    log.Prefix("MYAPP")
+
+### Modes: ###
+
+APPEND: Append if the file exists, otherwise create a new file
+
+TRUNC: Open and truncate the file, regardless of whether it already exists
+
+BACKUP: Rotate the log every time a new logger is created
+
+ROTATE: Append if the file exists, when the log reaches maxLines rotate files
