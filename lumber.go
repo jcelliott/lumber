@@ -12,14 +12,15 @@ const (
 	WARN
 	ERROR
 	FATAL
+	LOG
 
 	TIMEFORMAT = "2006/01/02 15:04:05"
 )
 
 var (
 	stdLog     = NewConsoleLogger(INFO)
-	levels     = [...]string{"TRACE", "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL"}
-	timeFormat = "2006/01/02 15:04:05"
+	levels     = [...]string{"TRACE", "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL", "*LOG*"}
+	timeFormat = TIMEFORMAT
 )
 
 type Logger interface {

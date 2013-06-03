@@ -117,6 +117,7 @@ func openBackup(f string, maxLines, maxRotate int) (*os.File, error) {
 
 // Rotate the logs
 func (l *FileLogger) rotate() error {
+	l.output(&Message{LOG, "Rotating log", time.Now()})
 	oldFile := l.out
 	file, err := doRotate(l.out.Name(), l.maxRotate)
 	if err != nil {
