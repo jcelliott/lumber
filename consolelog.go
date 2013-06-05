@@ -61,8 +61,8 @@ func (l *ConsoleLogger) TimeFormat(f string) {
 }
 
 // Close the logger (For a console logger this is just a noop)
-func (l *ConsoleLogger) Close() error {
-	return nil
+func (l *ConsoleLogger) Close() {
+	return
 }
 
 // Logging functions

@@ -34,6 +34,7 @@ type FileLogger struct {
 	curLines   int
 	maxRotate  int
 	mode       int
+	closed     bool
 }
 
 // Convenience function to create a new append-only logger
@@ -90,7 +91,7 @@ func NewFileLogger(f string, o, mode, maxLines, maxRotate, bufsize int) (l *File
 		timeFormat: TIMEFORMAT,
 		prefix:     "",
 		maxLines:   maxLines,
-		curLines:   0,
+		maxRotate:  maxRotate,
 		mode:       mode,
 	}
 
@@ -99,17 +100,25 @@ func NewFileLogger(f string, o, mode, maxLines, maxRotate, bufsize int) (l *File
 		l.curLines = countLines(l.out)
 	}
 
-	go func() {
-		for {
-			m, ok := <-l.queue
-			if !ok {
-				l.done <- true
-				return
-			}
-			l.output(m)
-		}
-	}()
+	go l.startOutput()
 	return
+}
+
+func (l *FileLogger) startOutput() {
+	for {
+		m, ok := <-l.queue
+		if !ok {
+			// the channel is closed and empty
+			l.printLog(&Message{LOG, fmt.Sprintf("Closing log now"), time.Now()})
+			l.out.Sync()
+			if err := l.out.Close(); err != nil {
+				l.printLog(&Message{LOG, fmt.Sprintf("Error closing log file: %s", err), time.Now()})
+			}
+			l.done <- true
+			return
+		}
+		l.output(m)
+	}
 }
 
 // Attempt to create new log. Specific behavior depends on the maxLines setting
@@ -184,16 +193,20 @@ func doRotate(f string, limit int) (*os.File, error) {
 // Generic output function. Outputs messages if they are higher level than outLevel for this
 // specific logger. If msg does not end with a newline, one will be appended.
 func (l *FileLogger) output(msg *Message) {
-	if msg.level < l.outLevel {
-		return
-	}
 	if l.mode == ROTATE && l.curLines >= l.maxLines {
 		err := l.rotate()
 		if err != nil {
-			Error(err.Error())
+			// if we can't rotate the logs, we should stop logging to prevent the log file from growing
+			// past the limit and continuously retrying the rotate operation (but log current msg first)
+			l.printLog(msg)
+			l.printLog(&Message{LOG, fmt.Sprintf("Error rotating logs: %s. Closing log."), time.Now()})
+			l.close()
 		}
 	}
+	l.printLog(msg)
+}
 
+func (l *FileLogger) printLog(msg *Message) {
 	buf := []byte{}
 	buf = append(buf, msg.time.Format(l.timeFormat)...)
 	if l.prefix != "" {
@@ -228,22 +241,18 @@ func (l *FileLogger) TimeFormat(f string) {
 	l.timeFormat = f
 }
 
-// Flush anything that hasn't been written and close the logger. If the FileLogger was created with
-// a buffer size > 0, Close *must* be called to prevent losing data.
-func (l *FileLogger) Close() (err error) {
+// Flush the messages in the queue and shut down the logger.
+func (l *FileLogger) close() {
+	l.closed = true
+	// closing the channel will signal the goroutine to finish writing messages in the queue
+	// and then shut down by sync'ing and close'ing the file.
 	close(l.queue)
+}
+
+// Flush the messages in the queue and shut down the logger.
+func (l *FileLogger) Close() {
+	l.close()
 	<-l.done
-	err = l.out.Sync()
-	if err != nil {
-		l.Error("Could not sync log file")
-		err = fmt.Errorf("Could not sync log file: %s", err)
-	}
-	err = l.out.Close()
-	if err != nil {
-		l.Error("Could not close log file")
-		err = fmt.Errorf("Could not close log file: %s", err)
-	}
-	return
 }
 
 // return the number of lines in the given file
@@ -264,27 +273,37 @@ func countLines(f *os.File) int {
 	return count
 }
 
+func (l *FileLogger) log(lvl int, format string, v ...interface{}) {
+	if lvl < l.outLevel || l.closed {
+		return
+	}
+	// recover in case the channel has already been closed (unlikely race condition)
+	// this could also be solved with a lock, but would cause a performance hit
+	defer recover()
+	l.queue <- &Message{lvl, fmt.Sprintf(format, v...), time.Now()}
+}
+
 // Logging functions
 func (l *FileLogger) Fatal(format string, v ...interface{}) {
-	l.queue <- &Message{FATAL, fmt.Sprintf(format, v...), time.Now()}
+	l.log(FATAL, format, v...)
 }
 
 func (l *FileLogger) Error(format string, v ...interface{}) {
-	l.queue <- &Message{ERROR, fmt.Sprintf(format, v...), time.Now()}
+	l.log(ERROR, format, v...)
 }
 
 func (l *FileLogger) Warn(format string, v ...interface{}) {
-	l.queue <- &Message{WARN, fmt.Sprintf(format, v...), time.Now()}
+	l.log(WARN, format, v...)
 }
 
 func (l *FileLogger) Info(format string, v ...interface{}) {
-	l.queue <- &Message{INFO, fmt.Sprintf(format, v...), time.Now()}
+	l.log(INFO, format, v...)
 }
 
 func (l *FileLogger) Debug(format string, v ...interface{}) {
-	l.queue <- &Message{DEBUG, fmt.Sprintf(format, v...), time.Now()}
+	l.log(DEBUG, format, v...)
 }
 
 func (l *FileLogger) Trace(format string, v ...interface{}) {
-	l.queue <- &Message{TRACE, fmt.Sprintf(format, v...), time.Now()}
+	l.log(TRACE, format, v...)
 }

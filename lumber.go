@@ -33,7 +33,7 @@ type Logger interface {
 	Level(int)
 	Prefix(string)
 	TimeFormat(string)
-	Close() error
+	Close()
 	output(msg *Message)
 }
 
