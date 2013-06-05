@@ -24,17 +24,12 @@ const (
 )
 
 type FileLogger struct {
-	queue      chan *Message
-	done       chan bool
-	out        *os.File
-	outLevel   int
-	timeFormat string
-	prefix     string
-	maxLines   int
-	curLines   int
-	maxRotate  int
-	mode       int
-	closed     bool
+	queue                                         chan *Message
+	done                                          chan bool
+	out                                           *os.File
+	timeFormat, prefix                            string
+	outLevel, maxLines, curLines, maxRotate, mode int
+	closed, errored                               bool
 }
 
 // Convenience function to create a new append-only logger
@@ -180,12 +175,13 @@ func doRotate(f string, limit int) (*os.File, error) {
 			continue
 		}
 		newName := fmt.Sprintf(strings.Join(parts[:len(parts)-1], ".")+numFmt, num+1)
-		if err = os.Rename(file, newName); err != nil {
-			return nil, fmt.Errorf("Error rotating logs: %s", err)
-		}
+		// don't check error because there's nothing we can do
+		os.Rename(file, newName)
 	}
 	if err = os.Rename(f, fmt.Sprintf(f+numFmt, 1)); err != nil {
-		return nil, fmt.Errorf("Error rotating logs: %s", err)
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("Error rotating logs: %s", err)
+		}
 	}
 	return os.OpenFile(f, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 }
@@ -193,13 +189,14 @@ func doRotate(f string, limit int) (*os.File, error) {
 // Generic output function. Outputs messages if they are higher level than outLevel for this
 // specific logger. If msg does not end with a newline, one will be appended.
 func (l *FileLogger) output(msg *Message) {
-	if l.mode == ROTATE && l.curLines >= l.maxLines {
+	if l.mode == ROTATE && l.curLines >= l.maxLines && !l.errored {
 		err := l.rotate()
 		if err != nil {
 			// if we can't rotate the logs, we should stop logging to prevent the log file from growing
 			// past the limit and continuously retrying the rotate operation (but log current msg first)
 			l.printLog(msg)
 			l.printLog(&Message{LOG, fmt.Sprintf("Error rotating logs: %s. Closing log."), time.Now()})
+			l.errored = true
 			l.close()
 		}
 	}
