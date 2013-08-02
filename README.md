@@ -51,6 +51,15 @@ Add a prefix to label different logs
 log.Prefix("MYAPP")
 ```
 
+Use a MultiLogger
+
+```go
+mlog := NewMultiLogger()
+mlog.AddLoggers(log1, log2)
+mlog.Warn("This message goes to multiple loggers")
+mlog.Close() // closes all loggers
+```
+
 ### Modes: ###
 
 APPEND: Append if the file exists, otherwise create a new file
