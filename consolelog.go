@@ -8,16 +8,19 @@ import (
 )
 
 type ConsoleLogger struct {
-	out        io.Writer
+	out        io.WriteCloser
 	outLevel   int
 	timeFormat string
 	prefix     string
 }
 
 // Create a new console logger with output level o, and an empty prefix
-func NewConsoleLogger(o int) (l *ConsoleLogger) {
-	l = &ConsoleLogger{os.Stdout, o, TIMEFORMAT, ""}
-	return
+func NewConsoleLogger(o int) *ConsoleLogger {
+	return &ConsoleLogger{os.Stdout, o, TIMEFORMAT, ""}
+}
+
+func NewBasicLogger(f io.WriteCloser, level int) *ConsoleLogger {
+	return &ConsoleLogger{f, level, TIMEFORMAT, ""}
 }
 
 // Generic output function. Outputs messages if they are higher level than outLevel for this
@@ -62,7 +65,7 @@ func (l *ConsoleLogger) TimeFormat(f string) {
 
 // Close the logger (For a console logger this is just a noop)
 func (l *ConsoleLogger) Close() {
-	return
+	l.out.Close()
 }
 
 // Logging functions

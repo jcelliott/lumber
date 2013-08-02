@@ -55,8 +55,9 @@ func NewRotateLogger(f string, maxLines, maxRotate int) (*FileLogger, error) {
 // Creates a new FileLogger with filename f, output level o, and an empty prefix.
 // Modes are described in the documentation; maxLines and maxRotate are only significant
 // for some modes.
-func NewFileLogger(f string, o, mode, maxLines, maxRotate, bufsize int) (l *FileLogger, err error) {
+func NewFileLogger(f string, o, mode, maxLines, maxRotate, bufsize int) (*FileLogger, error) {
 	var file *os.File
+	var err error
 
 	switch mode {
 	case APPEND:
@@ -66,7 +67,7 @@ func NewFileLogger(f string, o, mode, maxLines, maxRotate, bufsize int) (l *File
 		// just truncate file and start logging
 		file, err = os.OpenFile(f, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	case BACKUP:
-		// rotateMode every time a new logger is created
+		// rotate every time a new logger is created
 		file, err = openBackup(f, 0, maxRotate)
 	case ROTATE:
 		// "normal" rotation, when file reaches line limit
@@ -78,10 +79,18 @@ func NewFileLogger(f string, o, mode, maxLines, maxRotate, bufsize int) (l *File
 		return nil, fmt.Errorf("Error creating logger: %s", err)
 	}
 
+	return newFileLogger(file, o, mode, maxLines, maxRotate, bufsize), nil
+}
+
+func NewBasicFileLogger(f *os.File, level int) (l *FileLogger) {
+	return newFileLogger(f, level, 0, 0, 0, BUFSIZE)
+}
+
+func newFileLogger(f *os.File, o, mode, maxLines, maxRotate, bufsize int) (l *FileLogger) {
 	l = &FileLogger{
 		queue:      make(chan *Message, bufsize),
 		done:       make(chan bool),
-		out:        file,
+		out:        f,
 		outLevel:   o,
 		timeFormat: TIMEFORMAT,
 		prefix:     "",
