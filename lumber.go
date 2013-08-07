@@ -2,6 +2,7 @@ package lumber
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -49,6 +50,16 @@ func LvlStr(l int) string {
 		return levels[l]
 	}
 	return ""
+}
+
+// Returns the int value of the level
+func LvlInt(s string) int {
+	for i, str := range levels {
+		if strings.TrimSpace(str) == strings.ToUpper(s) {
+			return i
+		}
+	}
+	return 0
 }
 
 // Sets the output level for the default logger
