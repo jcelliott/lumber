@@ -1,3 +1,6 @@
+/*
+Package lumber implements a simple logger that supports log levels and rotation.
+*/
 package lumber
 
 import (
