@@ -12,15 +12,16 @@ type ConsoleLogger struct {
 	outLevel   int
 	timeFormat string
 	prefix     string
+	levels     []string
 }
 
 // Create a new console logger with output level o, and an empty prefix
 func NewConsoleLogger(o int) *ConsoleLogger {
-	return &ConsoleLogger{os.Stdout, o, TIMEFORMAT, ""}
+	return &ConsoleLogger{os.Stdout, o, TIMEFORMAT, "", levels}
 }
 
 func NewBasicLogger(f io.WriteCloser, level int) *ConsoleLogger {
-	return &ConsoleLogger{f, level, TIMEFORMAT, ""}
+	return &ConsoleLogger{f, level, TIMEFORMAT, "", levels}
 }
 
 // Generic output function. Outputs messages if they are higher level than outLevel for this
@@ -37,7 +38,7 @@ func (l *ConsoleLogger) output(msg *Message) {
 		buf = append(buf, l.prefix...)
 	}
 	buf = append(buf, ' ')
-	buf = append(buf, levels[msg.level]...)
+	buf = append(buf, l.levels[msg.level]...)
 	buf = append(buf, ' ')
 	buf = append(buf, msg.m...)
 	if len(msg.m) > 0 && msg.m[len(msg.m)-1] != '\n' {
@@ -46,9 +47,17 @@ func (l *ConsoleLogger) output(msg *Message) {
 	l.out.Write(buf)
 }
 
+// Sets the available levels for this logger
+func (l *ConsoleLogger) SetLevels(lvls []string) {
+	if lvls[len(lvls)-1] != "*LOG*" {
+		lvls = append(lvls, "*LOG*")
+	}
+	l.levels = lvls
+}
+
 // Sets the output level for this logger
 func (l *ConsoleLogger) Level(o int) {
-	if o >= TRACE && o <= FATAL {
+	if o >= 0 && o <= len(l.levels)-1 {
 		l.outLevel = o
 	}
 }
@@ -63,8 +72,9 @@ func (l *ConsoleLogger) TimeFormat(f string) {
 	l.timeFormat = f
 }
 
-// Close the logger (For a console logger this is just a noop)
+// Close the logger
 func (l *ConsoleLogger) Close() {
+	l.output(&Message{len(l.levels) - 1, "Closing log now", time.Now()})
 	l.out.Close()
 }
 
@@ -91,4 +101,12 @@ func (l *ConsoleLogger) Debug(format string, v ...interface{}) {
 
 func (l *ConsoleLogger) Trace(format string, v ...interface{}) {
 	l.output(&Message{TRACE, fmt.Sprintf(format, v...), time.Now()})
+}
+
+func (l *ConsoleLogger) Print(lvl int, v ...interface{}) {
+	l.output(&Message{lvl, fmt.Sprint(v...), time.Now()})
+}
+
+func (l *ConsoleLogger) Printf(lvl int, format string, v ...interface{}) {
+	l.output(&Message{lvl, fmt.Sprintf(format, v...), time.Now()})
 }

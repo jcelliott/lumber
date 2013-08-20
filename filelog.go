@@ -30,6 +30,7 @@ type FileLogger struct {
 	timeFormat, prefix                            string
 	outLevel, maxLines, curLines, maxRotate, mode int
 	closed, errored                               bool
+	levels                                        []string
 }
 
 // Convenience function to create a new append-only logger
@@ -97,6 +98,7 @@ func newFileLogger(f *os.File, o, mode, maxLines, maxRotate, bufsize int) (l *Fi
 		maxLines:   maxLines,
 		maxRotate:  maxRotate,
 		mode:       mode,
+		levels:     levels,
 	}
 
 	if mode == ROTATE {
@@ -113,10 +115,10 @@ func (l *FileLogger) startOutput() {
 		m, ok := <-l.queue
 		if !ok {
 			// the channel is closed and empty
-			l.printLog(&Message{LOG, fmt.Sprintf("Closing log now"), time.Now()})
+			l.printLog(&Message{len(l.levels) - 1, fmt.Sprintf("Closing log now"), time.Now()})
 			l.out.Sync()
 			if err := l.out.Close(); err != nil {
-				l.printLog(&Message{LOG, fmt.Sprintf("Error closing log file: %s", err), time.Now()})
+				l.printLog(&Message{len(l.levels) - 1, fmt.Sprintf("Error closing log file: %s", err), time.Now()})
 			}
 			l.done <- true
 			return
@@ -204,7 +206,7 @@ func (l *FileLogger) output(msg *Message) {
 			// if we can't rotate the logs, we should stop logging to prevent the log file from growing
 			// past the limit and continuously retrying the rotate operation (but log current msg first)
 			l.printLog(msg)
-			l.printLog(&Message{LOG, fmt.Sprintf("Error rotating logs: %s. Closing log."), time.Now()})
+			l.printLog(&Message{len(l.levels) - 1, fmt.Sprintf("Error rotating logs: %s. Closing log."), time.Now()})
 			l.errored = true
 			l.close()
 		}
@@ -220,7 +222,7 @@ func (l *FileLogger) printLog(msg *Message) {
 		buf = append(buf, l.prefix...)
 	}
 	buf = append(buf, ' ')
-	buf = append(buf, levels[msg.level]...)
+	buf = append(buf, l.levels[msg.level]...)
 	buf = append(buf, ' ')
 	buf = append(buf, msg.m...)
 	if len(msg.m) > 0 && msg.m[len(msg.m)-1] != '\n' {
@@ -230,9 +232,18 @@ func (l *FileLogger) printLog(msg *Message) {
 	l.out.Write(buf)
 }
 
+// Sets the available levels for this logger
+// TODO: append a *LOG* level
+func (l *FileLogger) SetLevels(lvls []string) {
+	if lvls[len(lvls)-1] != "*LOG*" {
+		lvls = append(lvls, "*LOG*")
+	}
+	l.levels = lvls
+}
+
 // Sets the output level for this logger
 func (l *FileLogger) Level(o int) {
-	if o >= TRACE && o <= FATAL {
+	if o >= 0 && o <= len(l.levels)-1 {
 		l.outLevel = o
 	}
 }
@@ -312,4 +323,12 @@ func (l *FileLogger) Debug(format string, v ...interface{}) {
 
 func (l *FileLogger) Trace(format string, v ...interface{}) {
 	l.log(TRACE, format, v...)
+}
+
+func (l *FileLogger) Print(lvl int, v ...interface{}) {
+	l.output(&Message{lvl, fmt.Sprint(v...), time.Now()})
+}
+
+func (l *FileLogger) Printf(lvl int, format string, v ...interface{}) {
+	l.output(&Message{lvl, fmt.Sprintf(format, v...), time.Now()})
 }

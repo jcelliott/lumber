@@ -16,14 +16,13 @@ const (
 	WARN
 	ERROR
 	FATAL
-	LOG
 
 	TIMEFORMAT = "2006/01/02 15:04:05"
 )
 
 var (
 	stdLog     = NewConsoleLogger(INFO)
-	levels     = [...]string{"TRACE", "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL", "*LOG*"}
+	levels     = []string{"TRACE", "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL", "*LOG*"}
 	timeFormat = TIMEFORMAT
 )
 
@@ -34,6 +33,8 @@ type Logger interface {
 	Info(string, ...interface{})
 	Debug(string, ...interface{})
 	Trace(string, ...interface{})
+	Print(int, ...interface{})
+	Printf(int, string, ...interface{})
 	Level(int)
 	Prefix(string)
 	TimeFormat(string)
@@ -49,7 +50,7 @@ type Message struct {
 
 // Returns the string representation of the level
 func LvlStr(l int) string {
-	if l >= TRACE && l <= FATAL {
+	if l >= 0 && l <= len(levels)-1 {
 		return levels[l]
 	}
 	return ""
@@ -98,4 +99,12 @@ func Debug(format string, v ...interface{}) {
 
 func Trace(format string, v ...interface{}) {
 	stdLog.output(&Message{TRACE, fmt.Sprintf(format, v...), time.Now()})
+}
+
+func Print(lvl int, v ...interface{}) {
+	stdLog.output(&Message{lvl, fmt.Sprint(v...), time.Now()})
+}
+
+func Printf(lvl int, format string, v ...interface{}) {
+	stdLog.output(&Message{lvl, fmt.Sprintf(format, v...), time.Now()})
 }
