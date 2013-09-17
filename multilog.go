@@ -1,5 +1,10 @@
 package lumber
 
+import (
+	"fmt"
+	"time"
+)
+
 type MultiLogger struct {
 	loggers []Logger
 }
@@ -80,4 +85,12 @@ func (p *MultiLogger) output(m *Message) {
 	for _, logger := range p.loggers {
 		logger.output(m)
 	}
+}
+
+func (p *MultiLogger) Print(lvl int, v ...interface{}) {
+	p.output(&Message{lvl, fmt.Sprint(v...), time.Now()})
+}
+
+func (p *MultiLogger) Printf(lvl int, format string, v ...interface{}) {
+	p.output(&Message{lvl, fmt.Sprintf(format, v...), time.Now()})
 }
