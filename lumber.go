@@ -33,6 +33,15 @@ type Logger interface {
 	Info(string, ...interface{})
 	Debug(string, ...interface{})
 	Trace(string, ...interface{})
+
+	IsFatal() bool
+	IsError() bool
+	IsWarn() bool
+	IsInfo() bool
+	IsDebug() bool
+	IsTrace() bool
+	GetLevel() int
+
 	Print(int, ...interface{})
 	Printf(int, string, ...interface{})
 	Level(int)
@@ -107,4 +116,32 @@ func Print(lvl int, v ...interface{}) {
 
 func Printf(lvl int, format string, v ...interface{}) {
 	stdLog.output(&Message{lvl, fmt.Sprintf(format, v...), time.Now()})
+}
+
+func GetLevel() int {
+	return stdLog.GetLevel()
+}
+
+func IsFatal() bool {
+	return stdLog.IsFatal()
+}
+
+func IsError() bool {
+	return stdLog.IsError()
+}
+
+func IsWarn() bool {
+	return stdLog.IsWarn()
+}
+
+func IsInfo() bool {
+	return stdLog.IsInfo()
+}
+
+func IsDebug() bool {
+	return stdLog.IsDebug()
+}
+
+func IsTrace() bool {
+	return stdLog.IsTrace()
 }

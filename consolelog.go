@@ -110,3 +110,31 @@ func (l *ConsoleLogger) Print(lvl int, v ...interface{}) {
 func (l *ConsoleLogger) Printf(lvl int, format string, v ...interface{}) {
 	l.output(&Message{lvl, fmt.Sprintf(format, v...), time.Now()})
 }
+
+func (l *ConsoleLogger) GetLevel() int {
+	return l.outLevel
+}
+
+func (l *ConsoleLogger) IsFatal() bool {
+	return l.outLevel <= FATAL
+}
+
+func (l *ConsoleLogger) IsError() bool {
+	return l.outLevel <= ERROR
+}
+
+func (l *ConsoleLogger) IsWarn() bool {
+	return l.outLevel <= WARN
+}
+
+func (l *ConsoleLogger) IsInfo() bool {
+	return l.outLevel <= INFO
+}
+
+func (l *ConsoleLogger) IsDebug() bool {
+	return l.outLevel <= DEBUG
+}
+
+func (l *ConsoleLogger) IsTrace() bool {
+	return l.outLevel <= TRACE
+}
