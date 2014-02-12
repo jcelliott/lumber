@@ -98,3 +98,37 @@ func (p *MultiLogger) Print(lvl int, v ...interface{}) {
 func (p *MultiLogger) Printf(lvl int, format string, v ...interface{}) {
 	p.output(&Message{lvl, fmt.Sprintf(format, v...), time.Now()})
 }
+
+func (p *MultiLogger) GetLevel() int {
+	level := FATAL
+	for _, logger := range p.loggers {
+		if logger.GetLevel() <= level {
+			level = logger.GetLevel()
+		}
+	}
+	return level
+}
+
+func (p *MultiLogger) IsFatal() bool {
+	return p.GetLevel() <= FATAL
+}
+
+func (p *MultiLogger) IsError() bool {
+	return p.GetLevel() <= ERROR
+}
+
+func (p *MultiLogger) IsWarn() bool {
+	return p.GetLevel() <= WARN
+}
+
+func (p *MultiLogger) IsInfo() bool {
+	return p.GetLevel() <= INFO
+}
+
+func (p *MultiLogger) IsDebug() bool {
+	return p.GetLevel() <= DEBUG
+}
+
+func (p *MultiLogger) IsTrace() bool {
+	return p.GetLevel() <= TRACE
+}

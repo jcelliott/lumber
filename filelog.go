@@ -332,3 +332,31 @@ func (l *FileLogger) Print(lvl int, v ...interface{}) {
 func (l *FileLogger) Printf(lvl int, format string, v ...interface{}) {
 	l.output(&Message{lvl, fmt.Sprintf(format, v...), time.Now()})
 }
+
+func (l *FileLogger) GetLevel() int {
+	return l.outLevel
+}
+
+func (l *FileLogger) IsFatal() bool {
+	return l.outLevel <= FATAL
+}
+
+func (l *FileLogger) IsError() bool {
+	return l.outLevel <= ERROR
+}
+
+func (l *FileLogger) IsWarn() bool {
+	return l.outLevel <= WARN
+}
+
+func (l *FileLogger) IsInfo() bool {
+	return l.outLevel <= INFO
+}
+
+func (l *FileLogger) IsDebug() bool {
+	return l.outLevel <= DEBUG
+}
+
+func (l *FileLogger) IsTrace() bool {
+	return l.outLevel <= TRACE
+}
