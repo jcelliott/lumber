@@ -19,6 +19,10 @@ func (p *MultiLogger) AddLoggers(newLogs ...Logger) {
 	}
 }
 
+func (p *MultiLogger) ClearLoggers() {
+	p.loggers = make([]Logger, 0)
+}
+
 // All of these implement the Logger interface and distribute calls to it over
 // all of the member Logger objects.
 func (p *MultiLogger) Fatal(s string, v ...interface{}) {
