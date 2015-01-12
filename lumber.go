@@ -21,6 +21,8 @@ const (
 )
 
 var (
+	Blocking = false
+
 	stdLog     = NewConsoleLogger(INFO)
 	levels     = []string{"TRACE", "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL", "*LOG*"}
 	timeFormat = TIMEFORMAT
