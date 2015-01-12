@@ -106,7 +106,18 @@ func newFileLogger(f *os.File, o, mode, maxLines, maxRotate, bufsize int) (l *Fi
 		l.curLines = countLines(l.out)
 	}
 
-	go l.startOutput()
+	// sometimes you may want the logger to block and write to your file rather than
+	// background it (for instance in a CLI once you've run a command the program may
+	// exit before the logger has a chance to write logs).
+	//
+	// for now this is a package varaiable, because it seemed like you'd either want
+	// one or the other, rather than needing both. However, should the need arise
+	// this can easily be changed to be a field on the FileLogger and then the check
+	// could be l.blocking
+	if !Blocking {
+		go l.startOutput()
+	}
+
 	return
 }
 
@@ -294,10 +305,18 @@ func (l *FileLogger) log(lvl int, format string, v ...interface{}) {
 	if lvl < l.outLevel || l.closed {
 		return
 	}
-	// recover in case the channel has already been closed (unlikely race condition)
-	// this could also be solved with a lock, but would cause a performance hit
-	defer recover()
-	l.queue <- &Message{lvl, fmt.Sprintf(format, v...), time.Now()}
+
+	// if !Blocking then run the default background logging,
+	if !Blocking {
+		// recover in case the channel has already been closed (unlikely race condition)
+		// this could also be solved with a lock, but would cause a performance hit
+		defer recover()
+		l.queue <- &Message{lvl, fmt.Sprintf(format, v...), time.Now()}
+
+		// otherwise l.Printf the Message (blocking)
+	} else {
+		l.Printf(lvl, fmt.Sprintf(format, v...))
+	}
 }
 
 // Logging functions
