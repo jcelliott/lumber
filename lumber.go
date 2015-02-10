@@ -4,7 +4,6 @@ Package lumber implements a simple logger that supports log levels and rotation.
 package lumber
 
 import (
-	"fmt"
 	"strings"
 	"time"
 )
@@ -85,37 +84,42 @@ func TimeFormat(f string) {
 	stdLog.TimeFormat(f)
 }
 
+// Close the default logger
+func Close() {
+	stdLog.Close()
+}
+
 // Logging functions
 func Fatal(format string, v ...interface{}) {
-	stdLog.output(&Message{FATAL, fmt.Sprintf(format, v...), time.Now()})
+	stdLog.Fatal(format, v...)
 }
 
 func Error(format string, v ...interface{}) {
-	stdLog.output(&Message{ERROR, fmt.Sprintf(format, v...), time.Now()})
+	stdLog.Error(format, v...)
 }
 
 func Warn(format string, v ...interface{}) {
-	stdLog.output(&Message{WARN, fmt.Sprintf(format, v...), time.Now()})
+	stdLog.Warn(format, v...)
 }
 
 func Info(format string, v ...interface{}) {
-	stdLog.output(&Message{INFO, fmt.Sprintf(format, v...), time.Now()})
+	stdLog.Info(format, v...)
 }
 
 func Debug(format string, v ...interface{}) {
-	stdLog.output(&Message{DEBUG, fmt.Sprintf(format, v...), time.Now()})
+	stdLog.Debug(format, v...)
 }
 
 func Trace(format string, v ...interface{}) {
-	stdLog.output(&Message{TRACE, fmt.Sprintf(format, v...), time.Now()})
+	stdLog.Trace(format, v...)
 }
 
 func Print(lvl int, v ...interface{}) {
-	stdLog.output(&Message{lvl, fmt.Sprint(v...), time.Now()})
+	stdLog.Print(lvl, v...)
 }
 
 func Printf(lvl int, format string, v ...interface{}) {
-	stdLog.output(&Message{lvl, fmt.Sprintf(format, v...), time.Now()})
+	stdLog.Printf(lvl, format, v...)
 }
 
 func GetLevel() int {
