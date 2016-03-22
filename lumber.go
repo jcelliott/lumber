@@ -20,9 +20,9 @@ const (
 )
 
 var (
-	stdLog     = NewConsoleLogger(INFO)
-	levels     = []string{"TRACE", "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL", "*LOG*"}
-	timeFormat = TIMEFORMAT
+	stdLog     Logger = NewConsoleLogger(INFO)
+	levels            = []string{"TRACE", "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL", "*LOG*"}
+	timeFormat        = TIMEFORMAT
 )
 
 type Logger interface {
@@ -54,6 +54,11 @@ type Message struct {
 	level int
 	m     string
 	time  time.Time
+}
+
+// SetLogger sets a new default logger
+func SetLogger(l Logger) {
+	stdLog = l
 }
 
 // Returns the string representation of the level
