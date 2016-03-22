@@ -89,6 +89,11 @@ func Close() {
 	stdLog.Close()
 }
 
+// Prefix sets a prefix for the default logger
+func Prefix(p string) {
+	stdLog.Prefix(p)
+}
+
 // Logging functions
 func Fatal(format string, v ...interface{}) {
 	stdLog.Fatal(format, v...)
