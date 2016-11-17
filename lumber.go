@@ -47,7 +47,6 @@ type Logger interface {
 	Prefix(string)
 	TimeFormat(string)
 	Close()
-	output(msg *Message)
 }
 
 type Message struct {
