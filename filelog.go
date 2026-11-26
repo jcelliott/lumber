@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -26,6 +27,7 @@ const (
 type FileLogger struct {
 	queue                                         chan *Message
 	done                                          chan bool
+	closeOnce                                     sync.Once
 	out                                           *os.File
 	timeFormat, prefix                            string
 	outLevel, maxLines, curLines, maxRotate, mode int
@@ -120,7 +122,7 @@ func (l *FileLogger) startOutput() {
 			if err := l.out.Close(); err != nil {
 				l.printLog(&Message{len(l.levels) - 1, fmt.Sprintf("Error closing log file: %s", err), time.Now()})
 			}
-			l.done <- true
+			close(l.done)
 			return
 		}
 		l.output(m)
@@ -206,7 +208,7 @@ func (l *FileLogger) output(msg *Message) {
 			// if we can't rotate the logs, we should stop logging to prevent the log file from growing
 			// past the limit and continuously retrying the rotate operation (but log current msg first)
 			l.printLog(msg)
-			l.printLog(&Message{len(l.levels) - 1, fmt.Sprintf("Error rotating logs: %s. Closing log."), time.Now()})
+			l.printLog(&Message{len(l.levels) - 1, fmt.Sprintf("Error rotating logs: %s. Closing log.", err), time.Now()})
 			l.errored = true
 			l.close()
 		}
@@ -260,13 +262,16 @@ func (l *FileLogger) TimeFormat(f string) {
 
 // Flush the messages in the queue and shut down the logger.
 func (l *FileLogger) close() {
-	l.closed = true
-	// closing the channel will signal the goroutine to finish writing messages in the queue
-	// and then shut down by sync'ing and close'ing the file.
-	close(l.queue)
+	l.closeOnce.Do(func() {
+		l.closed = true
+		// closing the channel will signal the goroutine to finish writing messages in the queue
+		// and then shut down by sync'ing and close'ing the file.
+		close(l.queue)
+	})
 }
 
 // Flush the messages in the queue and shut down the logger.
+// Repeated and concurrent calls wait for the same shutdown to finish.
 func (l *FileLogger) Close() {
 	l.close()
 	<-l.done
